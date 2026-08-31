@@ -2,8 +2,8 @@
 
 Rosie's eye-gaze music machine — a looping band she plays by looking.
 
-Six instruments (drums, guitar, piano, bass, cello, trumpet) each loop a part of
-the same four-bar groove (C major, C–Am–F–G). Looking at an instrument card for
+Seven instruments (drums, guitar, piano, bass, cello, trumpet and a singing
+choir) each loop a part of the same four-bar groove (C major, C–Am–F–G). Looking at an instrument card for
 the dwell time switches it on or off. Everything shares one clock, so whatever
 combination she chooses always plays in time and in tune — every mix she makes
 sounds like a song. Her mix is remembered between sessions.
@@ -49,7 +49,7 @@ sound after a real touch/click. After that one tap, gaze alone is enough.
 ## Other access methods
 
 - **Touch / mouse:** tap a card to toggle it.
-- **Keyboard / switch:** `1`–`6` toggle instruments, `Space`/`0` stop all,
+- **Keyboard / switch:** `1`–`7` toggle instruments, `Space`/`0` stop all,
   `Tab`+`Enter` for switch scanning, `F` full screen. Cards are real buttons
   with `role="switch"`, so screen readers announce state.
 
@@ -59,10 +59,13 @@ Everything lives in `index.html`:
 
 - `TRACKS` — names, colours, mix levels, reverb sends.
 - `DRUM_PAT`, `BASS_NOTES`, `GTR_CHORDS`, `PNO_CHORDS`, `CELLO_NOTES`,
-  `TPT_NOTES` — the musical material, as `[bar, step, midi, length, velocity]`
-  over 4 bars × 16 steps. Change these to write Rosie a new groove.
-- Synth voices are small functions (`kick`, `snare`, `pluck`, `celloNote`, …)
-  — tweak filters and envelopes to taste.
+  `TPT_NOTES`, `CHOIR_NOTES` — the musical material, as
+  `[bar, step, midi, length, velocity]` over 4 bars × 16 steps. Change these
+  to write Rosie a new groove.
+- Synth voices are small functions (`kick`, `snare`, `pluck`, `celloNote`,
+  `choirVoice`, …) — tweak filters and envelopes to taste. The choir is
+  formant synthesis: detuned sawtooths with slow vibrato through fixed
+  "ah"-vowel bandpass filters.
 
 Ideas for later: more grooves/keys to pick from, per-instrument pattern
 variations, recording her song to a file.

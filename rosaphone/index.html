@@ -134,15 +134,14 @@ button:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
 main{
   position:relative;z-index:2;flex:1;min-height:0;
   display:grid;
-  grid-template-columns:repeat(3,1fr);
-  grid-template-rows:repeat(2,1fr);
+  grid-template-columns:repeat(12,1fr);
+  grid-template-rows:repeat(2,minmax(0,1fr));
   gap:clamp(12px,1.8vh,24px);
   padding:clamp(10px,1.4vh,20px) clamp(16px,2vw,32px) clamp(16px,2.4vh,28px);
 }
-@media (max-aspect-ratio:0.9){
-  main{grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(3,1fr)}
-  .beats{display:none}
-}
+/* 7 instruments: 4 across the top, 3 wider below */
+.card{grid-column:span 3}
+.card:nth-child(n+5){grid-column:span 4}
 
 .card{
   --hue:#FFD34E;
@@ -206,6 +205,17 @@ main{
 }
 @keyframes eq{0%,100%{height:26%}35%{height:96%}70%{height:48%}}
 @keyframes pop{0%{transform:scale(1)}35%{transform:scale(1.14)}100%{transform:scale(1)}}
+
+/* tall/narrow screens: 2 columns, choir spans the bottom */
+@media (max-aspect-ratio:0.9){
+  main{grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(4,minmax(0,1fr))}
+  .beats{display:none}
+  .card{grid-column:span 1;min-height:0}
+  .card:nth-child(n+5){grid-column:span 1}
+  .card:nth-child(7){grid-column:span 2}
+  .card .glyph{width:clamp(70px,15vh,150px);height:clamp(70px,15vh,150px)}
+  .card .name{font-size:clamp(18px,3vh,30px)}
+}
 
 /* ---------------- splash ---------------- */
 #splash{
@@ -356,7 +366,7 @@ main{
     <div class="row">
       <h3>Keys &amp; switches</h3>
       <div class="kbd-help">
-        <b>1&ndash;6</b> toggle instruments &nbsp;&middot;&nbsp; <b>Space / 0</b> stop all<br>
+        <b>1&ndash;7</b> toggle instruments &nbsp;&middot;&nbsp; <b>Space / 0</b> stop all<br>
         <b>Tab + Enter</b> works with switch scanning &nbsp;&middot;&nbsp; <b>F</b> full screen
       </div>
     </div>
@@ -431,6 +441,20 @@ const IC = {
     <path d="M48 8v22M48 86v6"/>
     <path d="M41 52c-1.8 3.6-1.8 7.4 0 11M55 52c1.8 3.6 1.8 7.4 0 11"/>
   </svg>`,
+  choir:`<svg viewBox="0 0 96 96" fill="none" stroke="currentColor" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M43 16v-8l10-3v8" stroke-width="4"/>
+    <circle cx="41" cy="17" r="3.2" fill="currentColor" stroke="none"/>
+    <circle cx="51" cy="14" r="3.2" fill="currentColor" stroke="none"/>
+    <circle cx="18" cy="42" r="9.5"/>
+    <circle cx="78" cy="42" r="9.5"/>
+    <circle cx="48" cy="35" r="11"/>
+    <ellipse cx="18" cy="46.5" rx="2.4" ry="3.2" fill="currentColor" stroke="none"/>
+    <ellipse cx="78" cy="46.5" rx="2.4" ry="3.2" fill="currentColor" stroke="none"/>
+    <ellipse cx="48" cy="40" rx="2.7" ry="3.7" fill="currentColor" stroke="none"/>
+    <path d="M4 88c0-13 6-21 14-21s14 8 14 21"/>
+    <path d="M34 88c0-15 6-24 14-24s14 9 14 24"/>
+    <path d="M64 88c0-13 6-21 14-21s14 8 14 21"/>
+  </svg>`,
   trumpet:`<svg viewBox="0 0 96 96" fill="none" stroke="currentColor" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round">
     <path d="M10 44h44"/>
     <circle cx="8" cy="44" r="4" fill="currentColor" stroke="none"/>
@@ -452,6 +476,7 @@ const TRACKS = [
   { id:'bass',    name:'Bass',    color:'#FF8A3D', gain:0.85, send:.03 },
   { id:'cello',   name:'Cello',   color:'#B490FF', gain:0.50, send:.24 },
   { id:'trumpet', name:'Trumpet', color:'#FFD34E', gain:0.38, send:.20 },
+  { id:'choir',   name:'Choir',   color:'#FF7EB6', gain:0.60, send:.30 },
 ];
 const byId = Object.fromEntries(TRACKS.map(t => [t.id, t]));
 
@@ -475,6 +500,13 @@ const PNO_CHORDS  = [[60,64,67],[57,60,64],[57,60,65],[59,62,67]];
 const CELLO_NOTES = [
   [0,0,48,16,.9],[1,0,45,16,.9],[2,0,41,8,.9],[2,8,45,8,.85],[3,0,43,16,.95],
 ];
+/* sustained "aah" triads, mostly a still top line — serene under everything */
+const CHOIR_NOTES = [
+  [0,0,64,16,.9],[0,0,67,16,.8],[0,0,72,16,.75],
+  [1,0,64,16,.9],[1,0,69,16,.8],[1,0,72,16,.75],
+  [2,0,65,16,.9],[2,0,69,16,.8],[2,0,72,16,.75],
+  [3,0,62,16,.9],[3,0,67,16,.8],[3,0,71,16,.75],
+];
 const TPT_NOTES = [
   [0,0,76,2,.9],[0,2,74,1,.7],[0,4,72,4,1],[0,10,79,2,.8],[0,12,76,3,.85],
   [1,0,72,3,.9],[1,4,69,5,1],[1,12,72,1,.7],[1,13,74,1,.7],[1,14,76,2,.8],
@@ -491,6 +523,7 @@ const NOTES = {
   bass: indexNotes(BASS_NOTES),
   cello: indexNotes(CELLO_NOTES),
   trumpet: indexNotes(TPT_NOTES),
+  choir: indexNotes(CHOIR_NOTES),
 };
 
 /* ---------- audio engine ---------- */
@@ -542,7 +575,7 @@ function initAudio(){
   bus.connect(comp); comp.connect(master); master.connect(limiter); limiter.connect(ctx.destination);
   verb.connect(wet); wet.connect(comp);
 
-  const pans = {drums:0, bass:0, guitar:-.3, piano:.3, cello:-.18, trumpet:.18};
+  const pans = {drums:0, bass:0, guitar:-.3, piano:.3, cello:-.18, trumpet:.18, choir:0};
   for (const t of TRACKS){
     const g = ctx.createGain(); g.gain.value = t.gain;
     const p = (ctx.createStereoPanner ? ctx.createStereoPanner() : ctx.createGain());
@@ -583,6 +616,7 @@ function scheduleStep(step, t){
   if (state.mix.bass)   for (const n of NOTES.bass[bar][s])   bassNote(t, n);
   if (state.mix.cello)  for (const n of NOTES.cello[bar][s])  celloNote(t, n);
   if (state.mix.trumpet)for (const n of NOTES.trumpet[bar][s])trumpetNote(t, n);
+  if (state.mix.choir)  for (const n of NOTES.choir[bar][s])  choirVoice(t, n);
   if (state.mix.guitar){
     if (s === 4 || s === 12) strum(t, GTR_CHORDS[bar], .9);
     if (s === 10 && (bar === 1 || bar === 3)) pluck(t, GTR_CHORDS[bar][2] + 12, .55, .5, trackNodes.guitar.gain);
@@ -750,6 +784,43 @@ function trumpetNote(t, {m, len, v}){
   o1.stop(t + dur + .25); o2.stop(t + dur + .25);
 }
 
+/* choir "aah": detuned saws with slow vibrato, shaped by fixed vocal
+   formants (the formants staying put while pitch moves is what reads
+   as a human voice) */
+function choirVoice(t, {m, len, v}){
+  const out = trackNodes.choir.gain;
+  t += (m % 5) * .014;                        /* singers never enter exactly together */
+  const dur = len * stepDur() + .25;
+  const f = mtof(m);
+  const mix = ctx.createGain(); mix.gain.value = 1;
+  const stops = [];
+  for (const det of [-7, 6]){
+    const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f;
+    const lfo = ctx.createOscillator(); lfo.frequency.value = 4.4 + (m % 3) * .5;
+    const lg = ctx.createGain();
+    lg.gain.setValueAtTime(0, t);
+    lg.gain.linearRampToValueAtTime(6.5, t + .7);
+    o.detune.value = det;
+    lfo.connect(lg); lg.connect(o.detune);
+    o.connect(mix);
+    o.start(t); lfo.start(t);
+    o.stop(t + dur + .1); lfo.stop(t + dur + .1);
+  }
+  const env = ctx.createGain();
+  env.gain.setValueAtTime(0, t);
+  env.gain.linearRampToValueAtTime(.5 * v, t + .45);
+  env.gain.setValueAtTime(.5 * v, t + dur - .35);
+  env.gain.linearRampToValueAtTime(0, t + dur);
+  /* "ah" vowel: F1/F2/F3 bandpasses in parallel */
+  for (const [ff, fg, q] of [[800, 1, 9], [1150, .5, 11], [2900, .22, 13]]){
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass'; bp.frequency.value = ff; bp.Q.value = q;
+    const g = ctx.createGain(); g.gain.value = fg;
+    mix.connect(bp); bp.connect(g); g.connect(env);
+  }
+  env.connect(out);
+}
+
 /* ---------- build the stage ---------- */
 const RING_R = 46, RING_C = 2 * Math.PI * RING_R;
 const cards = {};
@@ -800,7 +871,7 @@ function setTrack(id, on, silent){
     announce(`${byId[id].name} ${on ? 'on' : 'off'}`);
   }
   const n = TRACKS.filter(t => state.mix[t.id]).length;
-  document.documentElement.style.setProperty('--energy', (n / 6).toFixed(2));
+  document.documentElement.style.setProperty('--energy', (n / TRACKS.length).toFixed(2));
   persist();
 }
 function toggleTrack(id){ setTrack(id, !state.mix[id]); }
@@ -945,7 +1016,7 @@ vol.addEventListener('input', () => {
 document.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT') return;
   if (!started && (e.key === 'Enter' || e.key === ' ')){ start(); e.preventDefault(); return; }
-  const i = '123456'.indexOf(e.key);
+  const i = '1234567'.indexOf(e.key);
   if (i >= 0 && started){ toggleTrack(TRACKS[i].id); e.preventDefault(); }
   else if ((e.key === ' ' || e.key === '0') && started && document.activeElement === document.body){ stopAll(); e.preventDefault(); }
   else if (e.key === 'f' || e.key === 'F'){ toggleFullscreen(); }
