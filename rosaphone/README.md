@@ -11,6 +11,15 @@ sounds like a song. Her mix is remembered between sessions.
 It is a single `index.html` with no dependencies, no internet needed, and no
 samples — every sound is synthesized live with the Web Audio API.
 
+## Testing the audio first (no gaze needed)
+
+Open **`soundcheck.html`** on any device — phone, laptop, or the Tobii — and
+tap. It's a tap-only test bench for the same synth voices: a "Hear it" button
+per instrument (one sound, instantly), loop toggles, master volume, and a live
+output meter — if the meter moves but you hear nothing, the device is muted,
+not broken. It also shows the audio engine state, sample rate, and output
+latency.
+
 ## Loading it onto the Tobii
 
 **Option A — copy the file (works offline)**
