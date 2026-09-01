@@ -32,6 +32,62 @@ latency.
 **Option B — host it** (e.g. GitHub Pages on this repo) and bookmark the URL in
 Edge on the device.
 
+## Starting with no helper (important)
+
+Browsers refuse to make sound until they see one real click or tap — that is
+the only reason the start screen exists. Do ANY one of these once, and
+Rosaphone detects that sound is already allowed and skips the start screen
+entirely: Rosie opens it and plays by gaze alone.
+
+1. **Her gaze system clicks for her.** If the Tobii is in a mode that sends a
+   click after a dwell (Windows Control click mode), her gaze IS the tap —
+   nothing to configure. (Set **Gaze dwell → Off** in the gear menu with this
+   mode, so the two dwells can't double-fire.)
+
+2. **Launch shortcut with an autoplay flag** (no admin rights needed). Point
+   the desktop or kiosk shortcut at:
+
+   ```
+   msedge --kiosk "C:\path\to\index.html" --edge-kiosk-type=fullscreen --autoplay-policy=no-user-gesture-required
+   ```
+
+   (`chrome.exe` takes the same `--autoplay-policy` flag.)
+
+3. **Device policy — works however the browser gets opened** (best when
+   another app will launch Rosaphone). In an admin command prompt:
+
+   ```
+   reg add HKLM\SOFTWARE\Policies\Microsoft\Edge /v AutoplayAllowed /t REG_DWORD /d 1
+   reg add HKLM\SOFTWARE\Policies\Google\Chrome /v AutoplayAllowed /t REG_DWORD /d 1
+   ```
+
+   This sets the browser's media-autoplay setting to Allow for every page.
+   To scope it to specific pages instead, use the `AutoplayAllowlist` policy
+   at the same registry paths.
+
+Chrome also tends to let local `file://` pages start audio on their own, and
+Rosaphone quietly retries for ~20 seconds after opening — so in any
+environment where audio is allowed, it starts with no interaction at all.
+Where it is still locked, the start screen stays up and ANY tap, click, or
+gaze-click **anywhere on the page** unlocks it — it doesn't have to hit the
+button.
+
+## Launching from another app (e.g. Rosie's Rosetta Stone)
+
+Have the app open the file path or hosted URL; with setup 2 or 3 above,
+Rosaphone starts by itself. Optional URL parameters let the launcher
+preconfigure it:
+
+| Parameter | Example | Meaning |
+|---|---|---|
+| `mix` | `?mix=drums,bass,choir` | start with these instruments playing (`mix=clear` for silence) |
+| `tempo` | `?tempo=80` | groove speed: 80, 100 or 120 |
+| `dwell` | `?dwell=1200` | look time in milliseconds (400–4000) |
+
+Example: `index.html?mix=piano,choir&tempo=80` opens with a gentle
+piano-and-choir bed already playing. Without parameters, Rosaphone restores
+whatever mix Rosie last built.
+
 ## Tobii setup
 
 The app expects gaze to move the mouse pointer:
@@ -45,8 +101,9 @@ The app expects gaze to move the mouse pointer:
   open the gear ⚙ and set **Gaze dwell → Off** so only the Tobii's click
   toggles (otherwise both would fire).
 
-A helper must tap the screen once on the start screen — browsers only unlock
-sound after a real touch/click. After that one tap, gaze alone is enough.
+On a device without the no-helper setup above, the start screen needs one tap
+from anyone, anywhere on the page, the first time it opens. With that setup
+done once, gaze alone is enough from the moment it opens.
 
 ## Helper settings (gear ⚙, tap only — gaze can't open it)
 

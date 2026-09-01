@@ -480,6 +480,26 @@ const TRACKS = [
 ];
 const byId = Object.fromEntries(TRACKS.map(t => [t.id, t]));
 
+/* launch parameters, so other apps (e.g. Rosie's Rosetta Stone) can open
+   Rosaphone preconfigured:
+   ?mix=drums,cello   start with these playing   (?mix=clear for silence)
+   ?tempo=80|100|120  groove speed
+   ?dwell=400..4000   look time in ms */
+const qs = new URLSearchParams(location.search);
+if (qs.has('mix')){
+  state.mix = {};
+  for (const id of (qs.get('mix') || '').split(','))
+    if (byId[id.trim()]) state.mix[id.trim()] = true;
+}
+if (qs.has('tempo')){
+  const t = +qs.get('tempo');
+  if ([80, 100, 120].includes(t)) state.bpm = t;
+}
+if (qs.has('dwell')){
+  const d = +qs.get('dwell');
+  if (d >= 400 && d <= 4000) state.dwellMs = d;
+}
+
 /* ---------- musical material ----------
    4 bars, 16 steps each. Chords: C  Am  F  G  */
 const DRUM_PAT = [
@@ -591,6 +611,9 @@ function initAudio(){
 }
 
 function schedulerTick(){
+  /* until the stage is live, keep the transport anchored to "now" so no
+     stale notes pile up while the context is still suspended */
+  if (!started){ nextNoteTime = ctx.currentTime + 0.08; return; }
   while (nextNoteTime < ctx.currentTime + LOOKAHEAD){
     scheduleStep(currentStep, nextNoteTime);
     nextNoteTime += stepDur();
@@ -923,7 +946,7 @@ requestAnimationFrame(dwellLoop);
 
 for (const t of TRACKS) dwellRegister(cards[t.id], () => toggleTrack(t.id));
 dwellRegister($('#stopAll'), stopAll);
-dwellRegister($('#startBtn'), start);
+dwellRegister($('#startBtn'), tryStart);
 
 /* ---------- beat dots + tempo-linked animation ---------- */
 const beatDots = document.querySelectorAll('.beats i');
@@ -938,31 +961,56 @@ function applyTempoCSS(){
 }
 applyTempoCSS();
 
-/* ---------- start / splash ---------- */
+/* ---------- start / splash ----------
+   Sound can only begin without a click if the browser allows autoplay
+   (kiosk flag or AutoplayAllowed policy — see README — or a gaze system
+   that sends real clicks). We try silently at load: if audio is already
+   allowed, the start screen never appears and Rosie needs no help at
+   all. Otherwise one real tap or gaze-click anywhere unlocks it. */
 let started = false;
-function start(){
+
+function enterStage(){
   if (started) return;
-  if (!ctx){
-    try{ initAudio(); }catch(e){ $('#startHint').textContent = 'Audio could not start: ' + e.message; return; }
+  started = true;
+  uiLocked = false;
+  $('#splash').style.display = 'none';
+  /* bring back the mix she was building last time */
+  for (const t of TRACKS) if (state.mix[t.id]) setTrack(t.id, true, true);
+  if (navigator.wakeLock){
+    const grab = () => navigator.wakeLock.request('screen').catch(() => {});
+    grab();
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) grab(); });
   }
-  /* resume() can hang forever without a real user gesture (gaze hover isn't one) */
+}
+
+function tryStart(){
+  if (started || !ctx) return;
+  ctx.resume().catch(() => {});
+  if (ctx.state === 'running'){ enterStage(); return; }
+  /* resume() hangs without a real gesture (gaze hover isn't one) */
   setTimeout(() => {
-    if (!started && ctx && ctx.state !== 'running')
-      $('#startHint').textContent = 'Nearly there — ask a helper to tap the screen once.';
-  }, 400);
-  ctx.resume().then(() => {
-    if (ctx.state !== 'running') return;
-    started = true;
-    uiLocked = false;
-    $('#splash').style.display = 'none';
-    /* bring back the mix she was building last time */
-    for (const t of TRACKS) if (state.mix[t.id]) setTrack(t.id, true, true);
-    if (navigator.wakeLock){
-      const grab = () => navigator.wakeLock.request('screen').then(l => wakeLock = l).catch(() => {});
-      let wakeLock; grab();
-      document.addEventListener('visibilitychange', () => { if (!document.hidden) grab(); });
-    }
-  });
+    if (!started && ctx.state !== 'running')
+      $('#startHint').textContent = 'This device needs one tap from a helper — the README shows how to remove that for good.';
+  }, 450);
+}
+
+try{ initAudio(); }catch(e){ $('#startHint').textContent = 'Audio could not start: ' + e.message; }
+if (ctx){
+  ctx.onstatechange = () => { if (ctx.state === 'running') enterStage(); };
+  if (ctx.state === 'running') enterStage();      /* autoplay already allowed — no splash */
+  else {
+    ctx.resume().then(() => { if (ctx.state === 'running') enterStage(); }).catch(() => {});
+    /* any real interaction anywhere counts as the unlock tap */
+    for (const ev of ['pointerdown', 'keydown'])
+      document.addEventListener(ev, tryStart, {capture:true, passive:true});
+    /* some environments (local files, kiosk policies) allow audio a moment
+       after load — keep knocking for a while so no tap is ever needed there */
+    let tries = 0;
+    const knock = setInterval(() => {
+      if (started || ++tries > 15){ clearInterval(knock); return; }
+      ctx.resume().then(() => { if (ctx.state === 'running') enterStage(); }).catch(() => {});
+    }, 1200);
+  }
 }
 
 /* ---------- settings ---------- */
@@ -1015,7 +1063,7 @@ vol.addEventListener('input', () => {
 /* ---------- keyboard & switch access ---------- */
 document.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT') return;
-  if (!started && (e.key === 'Enter' || e.key === ' ')){ start(); e.preventDefault(); return; }
+  if (!started && (e.key === 'Enter' || e.key === ' ')){ tryStart(); e.preventDefault(); return; }
   const i = '1234567'.indexOf(e.key);
   if (i >= 0 && started){ toggleTrack(TRACKS[i].id); e.preventDefault(); }
   else if ((e.key === ' ' || e.key === '0') && started && document.activeElement === document.body){ stopAll(); e.preventDefault(); }
