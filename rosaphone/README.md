@@ -3,10 +3,23 @@
 Rosie's eye-gaze music machine — a looping band she plays by looking.
 
 Seven instruments (drums, guitar, piano, bass, cello, trumpet and a singing
-choir) each loop a part of the same four-bar groove — an original synth-pop
-production in A minor (Am–F–C–G): four-on-the-floor kick with sidechain pump,
-gated-reverb snare, driving 8th-note analog bass, string machine, FM electric
-piano, chorused guitar chucks, and a delayed synth-brass lead hook. Looking at an instrument card for
+choir) each loop a part of the same four-bar groove. The instruments are
+**real recordings** embedded in the file — multisampled grand piano, clean
+electric guitar, fingered electric bass and trumpet (tonejs-instruments),
+string ensemble and choir (FluidR3, MIT) and an acoustic drum kit — played
+through a produced mix: sidechain pump, gated snare reverb, chorus,
+tempo-synced echoes, tape saturation and hall reverb.
+
+There are **two songs**, switched by the big header button (a gaze target,
+like the cards):
+
+- 🌙 **Night Drive** — driving 116 BPM synth-pop in A minor (four-on-the-floor,
+  pumping bass, tight trumpet hook).
+- ☀️ **Sunshine** — laid-back 96 BPM funk-pop in C major (swung feel,
+  tambourine backbeat, funky guitar riff, horn stabs).
+
+Both are original grooves written in the style of the records they nod to —
+no copyrighted material. Looking at an instrument card for
 the dwell time switches it on or off. Everything shares one clock, so whatever
 combination she chooses always plays in time and in tune — every mix she makes
 sounds like a song. Her mix is remembered between sessions.
@@ -83,12 +96,13 @@ preconfigure it:
 
 | Parameter | Example | Meaning |
 |---|---|---|
+| `song` | `?song=sunny` | which song to open on: `night` or `sunny` |
 | `mix` | `?mix=drums,bass,choir` | start with these instruments playing (`mix=clear` for silence) |
-| `tempo` | `?tempo=92` | groove speed: 92, 116 or 132 |
+| `tempo` | `?tempo=slow` | groove speed: `slow`, `medium` or `fast` |
 | `dwell` | `?dwell=1200` | look time in milliseconds (400–4000) |
 
-Example: `index.html?mix=piano,choir&tempo=92` opens with a gentle
-piano-and-choir bed already playing. Without parameters, Rosaphone restores
+Example: `index.html?song=sunny&mix=piano,choir&tempo=slow` opens with a
+gentle piano-and-choir bed already playing. Without parameters, Rosaphone restores
 whatever mix Rosie last built.
 
 ## Tobii setup
@@ -112,7 +126,8 @@ done once, gaze alone is enough from the moment it opens.
 
 - **Look time** — 0.6 s to 2.5 s dwell before a card fires (default 0.9 s).
 - **Gaze dwell** — on (hover switches) / off (click or tap only).
-- **Groove speed** — slow (92), medium (116), fast (132) BPM.
+- **Groove speed** — slow / medium / fast (each song has its own three
+  tempos: Night Drive 92/116/132, Sunshine 84/96/108).
 - **Volume** — master level (a limiter keeps it safe at any setting).
 
 ## Other access methods
@@ -127,17 +142,21 @@ done once, gaze alone is enough from the moment it opens.
 Everything lives in `index.html`:
 
 - `TRACKS` — names, colours, mix levels, reverb sends.
-- `DRUM_PAT`, `ROOTS`, `KEY_CHORDS`, `GTR_CHORDS`, `STR_CHORDS`, `KEYS_HITS`,
-  `LEAD_NOTES`, `CHOIR_NOTES` — the musical material, over 4 bars × 16 steps
-  (melodic notes as `[bar, step, midi, length, velocity]`). Change these to
-  write Rosie a new groove. The whole sound engine is one block marked
-  `ROSAPHONE ENGINE v2`, kept byte-identical in `index.html` and
-  `soundcheck.html` — edit both together.
-- Synth voices are small functions (`kick`, `snare`, `pluck`, `celloNote`,
-  `trumpetNote`, `choirVoice`, …). Production lives in `initAudio`: sidechain
-  pump bus, gated snare reverb, per-track chorus, tempo-synced echoes, tape
-  saturation and a safety limiter. The choir is formant synthesis: detuned
-  sawtooths with slow vibrato through fixed "ah"-vowel bandpass filters.
+- The musical material lives in `SONGS.night.build()` and
+  `SONGS.sunny.build()` — patterns over 4 bars × 16 steps, melodic notes as
+  `[bar, step, midi, length, velocity]`. Add a third song by copying one of
+  them (and its samples cover roughly bass E1–C4, everything else G3–F5).
+- The whole engine is one block marked `ROSAPHONE ENGINE v3`, kept
+  byte-identical in `index.html` and `soundcheck.html` — edit both together.
+  The samples are embedded as base64 mp3/wav in the same block: grand piano,
+  clean electric guitar, fingered bass and trumpet from
+  [tonejs-instruments](https://github.com/nbrosowsky/tonejs-instruments),
+  string ensemble, choir pad and tambourine from the FluidR3 GM soundfont
+  (MIT, Frank Wen), and the CYCdh acoustic drum kit.
+- Production lives in `initAudio`: sidechain pump bus, gated snare reverb,
+  per-track chorus, tempo-synced echoes, tape saturation and a safety
+  limiter. Playback is `sPlay` (nearest sample + playback-rate pitch shift +
+  envelope).
 
 Ideas for later: more grooves/keys to pick from, per-instrument pattern
 variations, recording her song to a file.
