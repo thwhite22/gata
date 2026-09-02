@@ -19,7 +19,10 @@ like the cards):
   tambourine backbeat, funky guitar riff, horn stabs).
 
 Both are original grooves written in the style of the records they nod to —
-no copyrighted material. Looking at an instrument card for
+no copyrighted material. The instruments are rendered per-note from the
+[GeneralUser GS](https://schristiancollins.com/generaluser.php) soundfont by
+S. Christian Collins (free to use and redistribute) — every note the songs
+need is baked in at its exact pitch, so nothing is pitch-shifted at playback. Looking at an instrument card for
 the dwell time switches it on or off. Everything shares one clock, so whatever
 combination she chooses always plays in time and in tune — every mix she makes
 sounds like a song. Her mix is remembered between sessions.
@@ -148,11 +151,10 @@ Everything lives in `index.html`:
   them (and its samples cover roughly bass E1–C4, everything else G3–F5).
 - The whole engine is one block marked `ROSAPHONE ENGINE v3`, kept
   byte-identical in `index.html` and `soundcheck.html` — edit both together.
-  The samples are embedded as base64 mp3/wav in the same block: grand piano,
-  clean electric guitar, fingered bass and trumpet from
-  [tonejs-instruments](https://github.com/nbrosowsky/tonejs-instruments),
-  string ensemble, choir pad and tambourine from the FluidR3 GM soundfont
-  (MIT, Frank Wen), and the CYCdh acoustic drum kit.
+  The samples are embedded as base64 mp3 in the same block, rendered per-note
+  from the GeneralUser GS soundfont (piano, clean electric guitar, fingered
+  bass, string ensemble, trumpet, choir aahs, and the standard drum kit, with
+  a synth sub layered under the kick).
 - Production lives in `initAudio`: sidechain pump bus, gated snare reverb,
   per-track chorus, tempo-synced echoes, tape saturation and a safety
   limiter. Playback is `sPlay` (nearest sample + playback-rate pitch shift +
