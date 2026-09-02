@@ -246,7 +246,9 @@ const ENGINE_OPTS = {
   volume:  () => Math.pow(.8, 1.6),
   mix:     () => mix,
   running: () => true,
+  loopBars: () => 2,
   onBeat:  () => {},
+  onRecState: () => {},
 };
 
 /* ===== ROSAPHONE ENGINE v3 — real sampled instruments, two songs =========
@@ -506,6 +508,7 @@ function initAudio(){
   master.connect(limiter); limiter.connect(ctx.destination);
   verb.connect(wet); wet.connect(comp);
   pumpBus.connect(bus);
+  initVoiceChain();
 
   gateInG = ctx.createGain(); gateInG.gain.value = 1;
   const gateConv = ctx.createConvolver(); gateConv.buffer = makeGateIR();
@@ -544,6 +547,7 @@ function engineTempoChanged(){
   const beat = 60 / bpmNow();
   if (gtrEchoD)  gtrEchoD.delayTime.setTargetAtTime(beat * .5,  ctx.currentTime, .05);
   if (leadEchoD) leadEchoD.delayTime.setTargetAtTime(beat * .75, ctx.currentTime, .05);
+  voiceTempoChanged();
 }
 
 function schedulerTick(){
@@ -682,6 +686,131 @@ function oneShot(id){
     case 'trumpet':sPlay('trumpet', out, t, 74, .9, .9, .008, .08); break;
     case 'choir':  [60,64,67].forEach((m,i) => sPlay('choir', out, t + i*.015, m, 2, .8, P.a, P.r)); break;
   }
+}
+/* ---------- Rosie's voice loop ----------
+   Looper design follows the quantized-recording model: arming waits for
+   the next bar, records exactly N bars against the shared clock, then
+   loops in sync forever — no timing skill needed, no drift. Playback
+   follows tempo/song changes by rate (pitch bends with it, on purpose). */
+let micStream = null, micSrc = null;
+let voiceBuf = null, voiceMeta = null;      /* {barDur, bars} at record time */
+let voiceSrcNode = null, voiceIn = null;    /* playback source, input gain */
+let recState = 'idle';                      /* idle | mic | armed | recording */
+
+function nextBarTime(minLead = .15){
+  const bar = 16 * stepDur();
+  let t = nextNoteTime + (((16 - (currentStep % 16)) % 16) * stepDur());
+  while (t < ctx.currentTime + minLead) t += bar;
+  return t;
+}
+
+async function ensureMic(){
+  if (micSrc) return true;
+  try{
+    micStream = await navigator.mediaDevices.getUserMedia({
+      audio: {echoCancellation: true, noiseSuppression: true, autoGainControl: true}
+    });
+    micSrc = ctx.createMediaStreamSource(micStream);
+    return true;
+  }catch(e){
+    ENGINE_OPTS.onRecState('mic-denied', {error: e.name});
+    return false;
+  }
+}
+
+/* soft hat ticks: a count-in bar, and a beat grid while recording if the
+   band is silent */
+function guideClicks(tStart, tEnd){
+  const beat = 60 / bpmNow();
+  const mixv = ENGINE_OPTS.mix();
+  const silent = !TRACKS.some(t => mixv[t.id]);
+  let t = tStart;
+  while (t - beat > ctx.currentTime + .02) t -= beat;
+  for (; t < tStart - .01; t += beat) playDrum({d:'chat', v:.5}, t);
+  if (silent) for (let t2 = tStart; t2 < tEnd - .01; t2 += beat) playDrum({d:'chat', v:.28}, t2);
+}
+
+async function startVoiceRecord(){
+  if (!ctx || recState !== 'idle') return;
+  recState = 'mic'; ENGINE_OPTS.onRecState('mic', {});
+  if (!(await ensureMic())){ recState = 'idle'; return; }
+  const bars = ENGINE_OPTS.loopBars();
+  const barDur = 16 * stepDur();
+  const tStart = nextBarTime(1.2);          /* always a visible get-ready gap */
+  const tEnd = tStart + bars * barDur;
+  guideClicks(tStart, tEnd);
+  const sp = ctx.createScriptProcessor(2048, 1, 1);
+  const sink = ctx.createGain(); sink.gain.value = 0;
+  micSrc.connect(sp); sp.connect(sink); sink.connect(ctx.destination);
+  const chunks = [];
+  sp.onaudioprocess = e => chunks.push({t: e.playbackTime, d: new Float32Array(e.inputBuffer.getChannelData(0))});
+  recState = 'armed'; ENGINE_OPTS.onRecState('armed', {tStart, tEnd, bars});
+  setTimeout(() => {
+    if (recState === 'armed'){ recState = 'recording'; ENGINE_OPTS.onRecState('recording', {tStart, tEnd, bars}); }
+  }, Math.max(0, (tStart - ctx.currentTime) * 1000));
+  setTimeout(() => {
+    sp.onaudioprocess = null;
+    try{ micSrc.disconnect(sp); }catch(e){}
+    try{ sp.disconnect(); }catch(e){}
+    buildVoiceLoop(chunks, tStart, bars, barDur);
+  }, (tEnd - ctx.currentTime) * 1000 + 250);
+}
+
+function buildVoiceLoop(chunks, tStart, bars, barDur){
+  const sr = ctx.sampleRate;
+  /* she sings to what she hears (late by output latency) and the mic path
+     adds input latency — shift the slice so her sounds land on the beat */
+  const comp = (ctx.outputLatency || .02) + (ctx.baseLatency || .01) + .02;
+  const need = Math.round(bars * barDur * sr);
+  const out = new Float32Array(need);
+  for (const c of chunks){
+    const rel = Math.round((c.t - (tStart + comp)) * sr);
+    const from = Math.max(0, -rel), to = Math.min(c.d.length, need - rel);
+    for (let i = from; i < to; i++) out[rel + i] = c.d[i];
+  }
+  const f = Math.min(Math.round(sr * .012), need >> 2);
+  for (let i = 0; i < f; i++){ out[i] *= i / f; out[need - 1 - i] *= i / f; }
+  const buf = ctx.createBuffer(1, need, sr);
+  buf.getChannelData(0).set(out);
+  voiceBuf = buf; voiceMeta = {barDur, bars};
+  recState = 'idle';
+  ENGINE_OPTS.onRecState('done', {bars});
+}
+
+function voiceLoadFrom(f32, sr, barDur, bars){
+  const buf = ctx.createBuffer(1, f32.length, sr);
+  buf.getChannelData(0).set(f32);
+  voiceBuf = buf; voiceMeta = {barDur, bars};
+}
+const voiceHasTake = () => !!voiceBuf;
+
+function voiceRate(){ return voiceMeta ? voiceMeta.barDur / (16 * stepDur()) : 1; }
+function voiceStart(){
+  voiceStop();
+  if (!voiceBuf || !voiceIn) return;
+  const src = ctx.createBufferSource();
+  src.buffer = voiceBuf; src.loop = true;
+  src.playbackRate.value = voiceRate();
+  src.connect(voiceIn);
+  src.start(nextBarTime(.1));
+  voiceSrcNode = src;
+}
+function voiceStop(){
+  if (voiceSrcNode){
+    try{ voiceSrcNode.stop(); }catch(e){}
+    try{ voiceSrcNode.disconnect(); }catch(e){}
+    voiceSrcNode = null;
+  }
+}
+function voiceTempoChanged(){
+  if (voiceSrcNode) voiceSrcNode.playbackRate.setTargetAtTime(voiceRate(), ctx.currentTime, .05);
+}
+function initVoiceChain(){
+  voiceIn = ctx.createGain(); voiceIn.gain.value = 1.0;
+  const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 130; hp.Q.value = -3;
+  const send = ctx.createGain(); send.gain.value = .12;
+  voiceIn.connect(hp); hp.connect(pumpBus);
+  hp.connect(send); send.connect(verb);
 }
 /* ===== END ENGINE ===== */
 

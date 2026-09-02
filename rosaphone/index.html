@@ -88,9 +88,10 @@ header{
   color:var(--ink-dim);letter-spacing:.4px;margin-top:2px;
 }
 .beats{
-  position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
   display:flex;gap:clamp(10px,1.4vw,18px);
+  margin:0 auto;align-self:center;
 }
+@media (max-width:1360px){.beats{display:none}}
 .beats i{
   width:clamp(10px,1.6vh,16px);height:clamp(10px,1.6vh,16px);
   border-radius:50%;background:var(--card-edge);
@@ -116,6 +117,34 @@ header{
   position:absolute;left:0;bottom:0;height:7px;width:100%;
   background:#FFD34E;transform-origin:left;transform:scaleX(0);
   border-radius:0 4px 4px 0;
+}
+#recBtn{
+  position:relative;overflow:hidden;
+  display:flex;align-items:center;gap:12px;
+  font-family:var(--display);font-size:clamp(16px,2.4vh,24px);color:var(--ink);
+  background:var(--night-up);
+  border:2.5px solid var(--card-edge);border-radius:20px;
+  padding:0 clamp(16px,1.6vw,28px);
+  height:clamp(58px,8.5vh,84px);
+  cursor:pointer;
+}
+#recBtn svg{width:clamp(16px,2.4vh,22px);height:auto;color:#FF4D5E}
+#recBtn:hover{border-color:#FF4D5E}
+#recBtn .bar{
+  position:absolute;left:0;bottom:0;height:7px;width:100%;
+  background:#FF4D5E;transform-origin:left;transform:scaleX(0);
+  border-radius:0 4px 4px 0;
+}
+#recBtn.busy svg{animation:recblink 1s ease-in-out infinite}
+@keyframes recblink{0%,100%{opacity:1}50%{opacity:.25}}
+/* Rosie's voice card states */
+.card.voice.empty{border-style:dashed}
+.card.voice.empty .glyph .icon{opacity:.4}
+.card.voice.recording{border-color:#FF4D5E;border-style:solid;
+  animation:recpulse 1s ease-in-out infinite}
+@keyframes recpulse{
+  0%,100%{box-shadow:0 0 24px rgba(255,77,94,.25)}
+  50%{box-shadow:0 0 54px rgba(255,77,94,.6)}
 }
 #stopAll{
   position:relative;overflow:hidden;
@@ -156,9 +185,8 @@ main{
   gap:clamp(12px,1.8vh,24px);
   padding:clamp(10px,1.4vh,20px) clamp(16px,2vw,32px) clamp(16px,2.4vh,28px);
 }
-/* 7 instruments: 4 across the top, 3 wider below */
+/* 8 cards: 4 x 2 */
 .card{grid-column:span 3}
-.card:nth-child(n+5){grid-column:span 4}
 
 .card{
   --hue:#FFD34E;
@@ -228,8 +256,6 @@ main{
   main{grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(4,minmax(0,1fr))}
   .beats{display:none}
   .card{grid-column:span 1;min-height:0}
-  .card:nth-child(n+5){grid-column:span 1}
-  .card:nth-child(7){grid-column:span 2}
   .card .glyph{width:clamp(70px,15vh,150px);height:clamp(70px,15vh,150px)}
   .card .name{font-size:clamp(18px,3vh,30px)}
 }
@@ -325,6 +351,11 @@ main{
         <span id="songName">Night Drive</span>
         <span class="bar"></span>
       </button>
+      <button id="recBtn" class="gaze" aria-label="Record Rosie's loop">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7" fill="currentColor"/></svg>
+        <span id="recLabel">Record</span>
+        <span class="bar"></span>
+      </button>
       <button id="stopAll" class="gaze" aria-label="Stop all instruments">
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="3" fill="currentColor"/></svg>
         <span>Stop&nbsp;all</span>
@@ -383,13 +414,18 @@ main{
       <div class="chips" id="tempoChips"></div>
     </div>
     <div class="row">
+      <h3>Rosie&rsquo;s loop length</h3>
+      <div class="chips" id="loopChips"></div>
+      <div class="note">How much the Record button captures. Recording waits for the next bar and always loops in time with the band.</div>
+    </div>
+    <div class="row">
       <h3>Volume</h3>
       <input type="range" id="volume" min="0" max="100" step="1" aria-label="Volume">
     </div>
     <div class="row">
       <h3>Keys &amp; switches</h3>
       <div class="kbd-help">
-        <b>1&ndash;7</b> toggle instruments &nbsp;&middot;&nbsp; <b>Space / 0</b> stop all<br>
+        <b>1&ndash;8</b> toggle instruments &nbsp;&middot;&nbsp; <b>R</b> record &nbsp;&middot;&nbsp; <b>Space / 0</b> stop all<br>
         <b>Tab + Enter</b> works with switch scanning &nbsp;&middot;&nbsp; <b>F</b> full screen
       </div>
     </div>
@@ -425,12 +461,13 @@ const state = {
   bpm     : saved.bpm     ?? 116,       // legacy — migrated to speed below
   speed   : saved.speed,                // 0 slow · 1 medium · 2 fast
   song    : saved.song    ?? 'night',
+  loopBars: [1,2,4].includes(saved.loopBars) ? saved.loopBars : 2,
   volume  : saved.volume  ?? 80,
   mix     : saved.mix     ?? {}         // {trackId: true}
 };
 function persist(){
   store.set({ dwellMs:state.dwellMs, dwellOn:state.dwellOn, speed:state.speed,
-              song:state.song, volume:state.volume, mix:state.mix });
+              song:state.song, loopBars:state.loopBars, volume:state.volume, mix:state.mix });
 }
 
 /* ---------- instrument icons (drawn, consistent stroke) ---------- */
@@ -500,7 +537,9 @@ const ENGINE_OPTS = {
   volume:  () => Math.pow(state.volume / 100, 1.6),
   mix:     () => state.mix,
   running: () => started,
+  loopBars: () => state.loopBars,
   onBeat:  (b, t) => setTimeout(() => pulseBeat(b), Math.max(0, (t - ctx.currentTime) * 1000)),
+  onRecState: (st, info) => recUI(st, info),
 };
 
 /* ===== ROSAPHONE ENGINE v3 — real sampled instruments, two songs =========
@@ -760,6 +799,7 @@ function initAudio(){
   master.connect(limiter); limiter.connect(ctx.destination);
   verb.connect(wet); wet.connect(comp);
   pumpBus.connect(bus);
+  initVoiceChain();
 
   gateInG = ctx.createGain(); gateInG.gain.value = 1;
   const gateConv = ctx.createConvolver(); gateConv.buffer = makeGateIR();
@@ -798,6 +838,7 @@ function engineTempoChanged(){
   const beat = 60 / bpmNow();
   if (gtrEchoD)  gtrEchoD.delayTime.setTargetAtTime(beat * .5,  ctx.currentTime, .05);
   if (leadEchoD) leadEchoD.delayTime.setTargetAtTime(beat * .75, ctx.currentTime, .05);
+  voiceTempoChanged();
 }
 
 function schedulerTick(){
@@ -937,6 +978,131 @@ function oneShot(id){
     case 'choir':  [60,64,67].forEach((m,i) => sPlay('choir', out, t + i*.015, m, 2, .8, P.a, P.r)); break;
   }
 }
+/* ---------- Rosie's voice loop ----------
+   Looper design follows the quantized-recording model: arming waits for
+   the next bar, records exactly N bars against the shared clock, then
+   loops in sync forever — no timing skill needed, no drift. Playback
+   follows tempo/song changes by rate (pitch bends with it, on purpose). */
+let micStream = null, micSrc = null;
+let voiceBuf = null, voiceMeta = null;      /* {barDur, bars} at record time */
+let voiceSrcNode = null, voiceIn = null;    /* playback source, input gain */
+let recState = 'idle';                      /* idle | mic | armed | recording */
+
+function nextBarTime(minLead = .15){
+  const bar = 16 * stepDur();
+  let t = nextNoteTime + (((16 - (currentStep % 16)) % 16) * stepDur());
+  while (t < ctx.currentTime + minLead) t += bar;
+  return t;
+}
+
+async function ensureMic(){
+  if (micSrc) return true;
+  try{
+    micStream = await navigator.mediaDevices.getUserMedia({
+      audio: {echoCancellation: true, noiseSuppression: true, autoGainControl: true}
+    });
+    micSrc = ctx.createMediaStreamSource(micStream);
+    return true;
+  }catch(e){
+    ENGINE_OPTS.onRecState('mic-denied', {error: e.name});
+    return false;
+  }
+}
+
+/* soft hat ticks: a count-in bar, and a beat grid while recording if the
+   band is silent */
+function guideClicks(tStart, tEnd){
+  const beat = 60 / bpmNow();
+  const mixv = ENGINE_OPTS.mix();
+  const silent = !TRACKS.some(t => mixv[t.id]);
+  let t = tStart;
+  while (t - beat > ctx.currentTime + .02) t -= beat;
+  for (; t < tStart - .01; t += beat) playDrum({d:'chat', v:.5}, t);
+  if (silent) for (let t2 = tStart; t2 < tEnd - .01; t2 += beat) playDrum({d:'chat', v:.28}, t2);
+}
+
+async function startVoiceRecord(){
+  if (!ctx || recState !== 'idle') return;
+  recState = 'mic'; ENGINE_OPTS.onRecState('mic', {});
+  if (!(await ensureMic())){ recState = 'idle'; return; }
+  const bars = ENGINE_OPTS.loopBars();
+  const barDur = 16 * stepDur();
+  const tStart = nextBarTime(1.2);          /* always a visible get-ready gap */
+  const tEnd = tStart + bars * barDur;
+  guideClicks(tStart, tEnd);
+  const sp = ctx.createScriptProcessor(2048, 1, 1);
+  const sink = ctx.createGain(); sink.gain.value = 0;
+  micSrc.connect(sp); sp.connect(sink); sink.connect(ctx.destination);
+  const chunks = [];
+  sp.onaudioprocess = e => chunks.push({t: e.playbackTime, d: new Float32Array(e.inputBuffer.getChannelData(0))});
+  recState = 'armed'; ENGINE_OPTS.onRecState('armed', {tStart, tEnd, bars});
+  setTimeout(() => {
+    if (recState === 'armed'){ recState = 'recording'; ENGINE_OPTS.onRecState('recording', {tStart, tEnd, bars}); }
+  }, Math.max(0, (tStart - ctx.currentTime) * 1000));
+  setTimeout(() => {
+    sp.onaudioprocess = null;
+    try{ micSrc.disconnect(sp); }catch(e){}
+    try{ sp.disconnect(); }catch(e){}
+    buildVoiceLoop(chunks, tStart, bars, barDur);
+  }, (tEnd - ctx.currentTime) * 1000 + 250);
+}
+
+function buildVoiceLoop(chunks, tStart, bars, barDur){
+  const sr = ctx.sampleRate;
+  /* she sings to what she hears (late by output latency) and the mic path
+     adds input latency — shift the slice so her sounds land on the beat */
+  const comp = (ctx.outputLatency || .02) + (ctx.baseLatency || .01) + .02;
+  const need = Math.round(bars * barDur * sr);
+  const out = new Float32Array(need);
+  for (const c of chunks){
+    const rel = Math.round((c.t - (tStart + comp)) * sr);
+    const from = Math.max(0, -rel), to = Math.min(c.d.length, need - rel);
+    for (let i = from; i < to; i++) out[rel + i] = c.d[i];
+  }
+  const f = Math.min(Math.round(sr * .012), need >> 2);
+  for (let i = 0; i < f; i++){ out[i] *= i / f; out[need - 1 - i] *= i / f; }
+  const buf = ctx.createBuffer(1, need, sr);
+  buf.getChannelData(0).set(out);
+  voiceBuf = buf; voiceMeta = {barDur, bars};
+  recState = 'idle';
+  ENGINE_OPTS.onRecState('done', {bars});
+}
+
+function voiceLoadFrom(f32, sr, barDur, bars){
+  const buf = ctx.createBuffer(1, f32.length, sr);
+  buf.getChannelData(0).set(f32);
+  voiceBuf = buf; voiceMeta = {barDur, bars};
+}
+const voiceHasTake = () => !!voiceBuf;
+
+function voiceRate(){ return voiceMeta ? voiceMeta.barDur / (16 * stepDur()) : 1; }
+function voiceStart(){
+  voiceStop();
+  if (!voiceBuf || !voiceIn) return;
+  const src = ctx.createBufferSource();
+  src.buffer = voiceBuf; src.loop = true;
+  src.playbackRate.value = voiceRate();
+  src.connect(voiceIn);
+  src.start(nextBarTime(.1));
+  voiceSrcNode = src;
+}
+function voiceStop(){
+  if (voiceSrcNode){
+    try{ voiceSrcNode.stop(); }catch(e){}
+    try{ voiceSrcNode.disconnect(); }catch(e){}
+    voiceSrcNode = null;
+  }
+}
+function voiceTempoChanged(){
+  if (voiceSrcNode) voiceSrcNode.playbackRate.setTargetAtTime(voiceRate(), ctx.currentTime, .05);
+}
+function initVoiceChain(){
+  voiceIn = ctx.createGain(); voiceIn.gain.value = 1.0;
+  const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 130; hp.Q.value = -3;
+  const send = ctx.createGain(); send.gain.value = .12;
+  voiceIn.connect(hp); hp.connect(pumpBus);
+  hp.connect(send); send.connect(verb);
+}
 /* ===== END ENGINE ===== */
 
 /* saved settings from older versions migrate to song + speed */
@@ -968,6 +1134,10 @@ if (qs.has('dwell')){
   const d = +qs.get('dwell');
   if (d >= 400 && d <= 4000) state.dwellMs = d;
 }
+if (qs.has('loop')){
+  const b = +qs.get('loop');
+  if ([1, 2, 4].includes(b)) state.loopBars = b;
+}
 
 /* ---------- build the stage ---------- */
 const RING_R = 46, RING_C = 2 * Math.PI * RING_R;
@@ -996,9 +1166,37 @@ for (const t of TRACKS){
   cards[t.id] = b;
   b._ringFill = b.querySelector('.fill');
 }
+/* the 8th card: Rosie's own recorded loop */
+const voiceCard = document.createElement('button');
+voiceCard.className = 'card voice gaze empty';
+voiceCard.style.setProperty('--hue', '#2DD4BF');
+voiceCard.dataset.track = 'voice';
+voiceCard.setAttribute('role', 'switch');
+voiceCard.setAttribute('aria-checked', 'false');
+voiceCard.setAttribute('aria-label', "Rosie's loop");
+voiceCard.innerHTML = `
+  <span class="glyph">
+    <svg class="ring" viewBox="0 0 100 100" aria-hidden="true">
+      <circle class="track" cx="50" cy="50" r="${RING_R}" fill="none" stroke-width="5"/>
+      <circle class="fill"  cx="50" cy="50" r="${RING_R}" fill="none" stroke-width="6"
+        stroke-dasharray="${RING_C.toFixed(1)}" stroke-dashoffset="${RING_C.toFixed(1)}"/>
+    </svg>
+    <span class="icon"><svg viewBox="0 0 96 96" fill="none" stroke="currentColor" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="38" y="10" width="20" height="36" rx="10"/>
+      <path d="M28 40c0 12 9 21 20 21s20-9 20-21"/>
+      <path d="M48 61v15M34 84h28"/>
+      <path d="M46 22h4M46 30h4" stroke-width="4"/>
+    </svg></span>
+  </span>
+  <span class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+  <span class="name">Rosie</span>`;
+stage.appendChild(voiceCard);
+cards.voice = voiceCard;
+voiceCard._ringFill = voiceCard.querySelector('.fill');
 $('#stopAll')._barFill = $('#stopAll .bar');
 $('#startBtn')._barFill = $('#startBtn .bar');
 $('#songBtn')._barFill = $('#songBtn .bar');
+$('#recBtn')._barFill = $('#recBtn .bar');
 
 function setProgress(el, p){
   if (el._ringFill) el._ringFill.style.strokeDashoffset = (RING_C * (1 - p)).toFixed(1);
@@ -1019,14 +1217,101 @@ function setTrack(id, on, silent){
     card.classList.add('popped');
     announce(`${byId[id].name} ${on ? 'on' : 'off'}`);
   }
-  const n = TRACKS.filter(t => state.mix[t.id]).length;
-  document.documentElement.style.setProperty('--energy', (n / TRACKS.length).toFixed(2));
+  updateEnergy();
   persist();
+}
+function updateEnergy(){
+  const n = TRACKS.filter(t => state.mix[t.id]).length + (state.mix.voice ? 1 : 0);
+  document.documentElement.style.setProperty('--energy', (n / (TRACKS.length + 1)).toFixed(2));
 }
 function toggleTrack(id){ setTrack(id, !state.mix[id]); }
 function stopAll(){
   for (const t of TRACKS) if (state.mix[t.id]) setTrack(t.id, false, true);
+  setVoiceOn(false, true);
   announce('All instruments stopped');
+}
+
+/* ---------- Rosie's loop: card + record button ---------- */
+function refreshVoiceCard(){ voiceCard.classList.toggle('empty', !voiceHasTake()); }
+function setVoiceOn(on, silent){
+  if (on && !voiceHasTake()) return;
+  state.mix.voice = !!on;
+  voiceCard.classList.toggle('on', !!on);
+  voiceCard.setAttribute('aria-checked', on ? 'true' : 'false');
+  if (on) voiceStart(); else voiceStop();
+  if (!silent){
+    voiceCard.classList.remove('popped'); void voiceCard.offsetWidth;
+    voiceCard.classList.add('popped');
+    announce(on ? "Rosie's loop on" : "Rosie's loop off");
+  }
+  updateEnergy(); persist();
+}
+function recordFlow(){ if (started && recState === 'idle') startVoiceRecord(); }
+
+let recTimer = 0;
+function recUI(st, info){
+  const label = $('#recLabel'), btn = $('#recBtn');
+  clearInterval(recTimer);
+  if (st === 'mic'){
+    label.textContent = 'Mic…'; btn.classList.add('busy');
+  } else if (st === 'mic-denied'){
+    btn.classList.remove('busy');
+    label.textContent = 'Mic blocked';
+    announce('The microphone is blocked — a helper needs to allow it once');
+    setTimeout(() => { label.textContent = 'Record'; }, 3000);
+  } else if (st === 'armed'){
+    btn.classList.add('busy');
+    voiceCard.classList.add('recording');
+    announce('Get ready to sing');
+    recTimer = setInterval(() => {
+      const left = info.tStart - ctx.currentTime;
+      if (left > 0) label.textContent = 'Ready… ' + Math.ceil(left);
+    }, 100);
+  } else if (st === 'recording'){
+    announce('Recording — sing!');
+    recTimer = setInterval(() => {
+      const frac = Math.min(1, (ctx.currentTime - info.tStart) / (info.tEnd - info.tStart));
+      label.textContent = 'Listening ' + Math.round(frac * 100) + '%';
+    }, 120);
+  } else if (st === 'done'){
+    btn.classList.remove('busy');
+    voiceCard.classList.remove('recording');
+    label.textContent = 'Record';
+    refreshVoiceCard();
+    persistTake();
+    setVoiceOn(true);
+    announce("Rosie's loop is in the band");
+  }
+}
+
+function persistTake(){
+  try{
+    if (!voiceBuf) return;
+    const d = voiceBuf.getChannelData(0);
+    const i16 = new Int16Array(d.length);
+    for (let i = 0; i < d.length; i++) i16[i] = Math.max(-1, Math.min(1, d[i])) * 32767;
+    let bin = '';
+    const u8 = new Uint8Array(i16.buffer);
+    for (let i = 0; i < u8.length; i += 0x8000) bin += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000));
+    localStorage.setItem('rosaphone.take.v1', JSON.stringify({
+      sr: voiceBuf.sampleRate, barDur: voiceMeta.barDur, bars: voiceMeta.bars, pcm: btoa(bin)
+    }));
+  }catch(e){}
+}
+function restoreTake(){
+  try{
+    const raw = localStorage.getItem('rosaphone.take.v1');
+    if (!raw || !ctx) return;
+    const o = JSON.parse(raw);
+    const bin = atob(o.pcm);
+    const u8 = new Uint8Array(bin.length);
+    for (let i = 0; i < u8.length; i++) u8[i] = bin.charCodeAt(i);
+    const i16 = new Int16Array(u8.buffer);
+    const f32 = new Float32Array(i16.length);
+    for (let i = 0; i < i16.length; i++) f32[i] = i16[i] / 32767;
+    voiceLoadFrom(f32, o.sr, o.barDur, o.bars);
+    refreshVoiceCard();
+  }catch(e){}
 }
 
 /* ---------- dwell engine ----------
@@ -1088,6 +1373,8 @@ function setSong(id, silent){
 }
 dwellRegister($('#songBtn'), () => setSong(state.song === 'night' ? 'sunny' : 'night'));
 setSong(state.song, true);
+dwellRegister($('#recBtn'), recordFlow);
+dwellRegister(voiceCard, () => voiceHasTake() ? setVoiceOn(!state.mix.voice) : recordFlow());
 
 /* ---------- beat dots + tempo-linked animation ---------- */
 const beatDots = document.querySelectorAll('.beats i');
@@ -1118,6 +1405,7 @@ function enterStage(){
   $('#splash').style.display = 'none';
   /* bring back the mix she was building last time */
   for (const t of TRACKS) if (state.mix[t.id]) setTrack(t.id, true, true);
+  if (state.mix.voice && voiceHasTake()) setVoiceOn(true, true); else state.mix.voice = false;
   if (navigator.wakeLock){
     const grab = () => navigator.wakeLock.request('screen').catch(() => {});
     grab();
@@ -1137,6 +1425,7 @@ function tryStart(){
 }
 
 try{ initAudio(); }catch(e){ $('#startHint').textContent = 'Audio could not start: ' + e.message; }
+restoreTake();
 if (ctx){
   ctx.onstatechange = () => { if (ctx.state === 'running') enterStage(); };
   if (ctx.state === 'running') enterStage();      /* autoplay already allowed — no splash */
@@ -1182,6 +1471,9 @@ function chipGroup(elId, options, get, set){
 chipGroup('#dwellChips',
   [{label:'0.6 s',value:600},{label:'0.9 s',value:900},{label:'1.2 s',value:1200},{label:'1.8 s',value:1800},{label:'2.5 s',value:2500}],
   () => state.dwellMs, v => { state.dwellMs = +v; });
+chipGroup('#loopChips',
+  [{label:'1 bar',value:1},{label:'2 bars',value:2},{label:'4 bars',value:4}],
+  () => state.loopBars, v => { state.loopBars = +v; });
 chipGroup('#tempoChips',
   [{label:'Slow',value:0},{label:'Medium',value:1},{label:'Fast',value:2}],
   () => state.speed, v => { state.speed = +v; applyTempoCSS(); });
@@ -1208,6 +1500,8 @@ document.addEventListener('keydown', e => {
   if (!started && (e.key === 'Enter' || e.key === ' ')){ tryStart(); e.preventDefault(); return; }
   const i = '1234567'.indexOf(e.key);
   if (i >= 0 && started){ toggleTrack(TRACKS[i].id); e.preventDefault(); }
+  else if (e.key === '8' && started){ if (voiceHasTake()) setVoiceOn(!state.mix.voice); e.preventDefault(); }
+  else if ((e.key === 'r' || e.key === 'R') && started){ recordFlow(); }
   else if ((e.key === ' ' || e.key === '0') && started && document.activeElement === document.body){ stopAll(); e.preventDefault(); }
   else if (e.key === 'f' || e.key === 'F'){ toggleFullscreen(); }
   else if (e.key === 'Escape'){ closeSettings(); }
@@ -1231,7 +1525,11 @@ window.__rosa = {
   get step(){ return currentStep; },
   get started(){ return started; },
   get ready(){ return samplesReady; },
-  toggleTrack, stopAll, setSong
+  get recState(){ return recState; },
+  get hasTake(){ return voiceHasTake(); },
+  toggleTrack, stopAll, setSong,
+  record: recordFlow,
+  toggleVoice: () => setVoiceOn(!state.mix.voice)
 };
 </script>
 </body>

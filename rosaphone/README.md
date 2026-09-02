@@ -30,6 +30,37 @@ sounds like a song. Her mix is remembered between sessions.
 It is a single `index.html` with no dependencies, no internet needed, and no
 samples — every sound is synthesized live with the Web Audio API.
 
+## Rosie records her own loop
+
+The **Record** button in the header (and the teal **Rosie** card while it's
+empty) records her voice into the band. It works like a pro looper set to
+quantized recording: dwelling Record *arms* it, a soft count-in ticks, the
+recording starts exactly on the next bar, captures a fixed number of bars,
+then immediately loops in time with everything else — the same design as
+Ableton-style loopers, where fixed, bar-quantized lengths are what keep
+loops from ever drifting. If the band is silent, quiet ticks play during
+recording so she still has the beat.
+
+- **Loop length** (helper settings → *Rosie's loop length*): **1 bar**
+  (≈1.8–2.9 s depending on song/speed) for instant call-and-response fun,
+  **2 bars** (≈3.6–5.7 s, the default) for a phrase, or **4 bars**
+  (≈7.3–11.4 s) for a take that spans the whole chord cycle.
+- After recording, the **Rosie card** works exactly like the instrument
+  cards — look to switch her loop on and off. Dwelling **Record** again
+  takes a new take (the old one is replaced). Her take is saved on the
+  device and comes back after a restart.
+- If the tempo or song changes, her loop follows by speeding up or slowing
+  down (the pitch bends with it — deliberately, it's fun).
+- Recording uses the microphone with echo cancellation, so the band playing
+  from the speakers is subtracted from what the mic captures.
+
+**Microphone permission:** the first Record needs a helper to tap "Allow"
+once. To remove even that on the Tobii: add
+`--use-fake-ui-for-media-stream` to the kiosk shortcut (auto-accepts mic
+prompts — fine on a dedicated device), or, when hosting Rosaphone at a URL,
+set the `AudioCaptureAllowedUrls` browser policy to that URL so the mic is
+granted with no prompt.
+
 ## Testing the audio first (no gaze needed)
 
 Open **`soundcheck.html`** on any device — phone, laptop, or the Tobii — and
@@ -103,6 +134,7 @@ preconfigure it:
 | `mix` | `?mix=drums,bass,choir` | start with these instruments playing (`mix=clear` for silence) |
 | `tempo` | `?tempo=slow` | groove speed: `slow`, `medium` or `fast` |
 | `dwell` | `?dwell=1200` | look time in milliseconds (400–4000) |
+| `loop` | `?loop=1` | Rosie's record length in bars: 1, 2 or 4 |
 
 Example: `index.html?song=sunny&mix=piano,choir&tempo=slow` opens with a
 gentle piano-and-choir bed already playing. Without parameters, Rosaphone restores
@@ -136,7 +168,8 @@ done once, gaze alone is enough from the moment it opens.
 ## Other access methods
 
 - **Touch / mouse:** tap a card to toggle it.
-- **Keyboard / switch:** `1`–`7` toggle instruments, `Space`/`0` stop all,
+- **Keyboard / switch:** `1`–`8` toggle instruments (8 = Rosie's loop),
+  `R` record, `Space`/`0` stop all,
   `Tab`+`Enter` for switch scanning, `F` full screen. Cards are real buttons
   with `role="switch"`, so screen readers announce state.
 
