@@ -10,13 +10,20 @@ string ensemble and choir (FluidR3, MIT) and an acoustic drum kit — played
 through a produced mix: sidechain pump, gated snare reverb, chorus,
 tempo-synced echoes, tape saturation and hall reverb.
 
-There are **two songs**, switched by the big header button (a gaze target,
-like the cards):
+There are **five songs**. The big header button (a gaze target, like the
+cards) opens a full-screen picker of five big song cards — she chooses by
+looking:
 
 - 🌙 **Night Drive** — driving 116 BPM synth-pop in A minor (four-on-the-floor,
   pumping bass, tight trumpet hook).
 - ☀️ **Sunshine** — laid-back 96 BPM funk-pop in C major (swung feel,
   tambourine backbeat, funky guitar riff, horn stabs).
+- 🌴 **Island Time** — 80 BPM reggae in G major (one-drop drums with nothing
+  on beat one, skank chords on 2 &amp; 4, round melodic bass, lazy horn line).
+- ✨ **Starlight** — 66 BPM lullaby in F major (music-box piano arpeggios,
+  heartbeat drums, long warm pads, a hushed horn melody).
+- 🐉 **Dragon March** — 100 BPM adventure march in D minor (staccato string
+  ostinato, horn fanfare, driving bass, big choir, snare roll into the loop).
 
 Both are original grooves written in the style of the records they nod to —
 no copyrighted material. The instruments are rendered per-note from the
@@ -130,7 +137,7 @@ preconfigure it:
 
 | Parameter | Example | Meaning |
 |---|---|---|
-| `song` | `?song=sunny` | which song to open on: `night` or `sunny` |
+| `song` | `?song=sunny` | which song to open on: `night`, `sunny`, `island`, `star` or `dragon` |
 | `mix` | `?mix=drums,bass,choir` | start with these instruments playing (`mix=clear` for silence) |
 | `tempo` | `?tempo=slow` | groove speed: `slow`, `medium` or `fast` |
 | `dwell` | `?dwell=1200` | look time in milliseconds (400–4000) |
@@ -162,7 +169,7 @@ done once, gaze alone is enough from the moment it opens.
 - **Look time** — 0.6 s to 2.5 s dwell before a card fires (default 0.9 s).
 - **Gaze dwell** — on (hover switches) / off (click or tap only).
 - **Groove speed** — slow / medium / fast (each song has its own three
-  tempos: Night Drive 92/116/132, Sunshine 84/96/108).
+  tempos, e.g. Night Drive 92/116/132, Starlight 58/66/74).
 - **Volume** — master level (a limiter keeps it safe at any setting).
 
 ## Other access methods
@@ -178,10 +185,10 @@ done once, gaze alone is enough from the moment it opens.
 Everything lives in `index.html`:
 
 - `TRACKS` — names, colours, mix levels, reverb sends.
-- The musical material lives in `SONGS.night.build()` and
-  `SONGS.sunny.build()` — patterns over 4 bars × 16 steps, melodic notes as
-  `[bar, step, midi, length, velocity]`. Add a third song by copying one of
-  them (and its samples cover roughly bass E1–C4, everything else G3–F5).
+- The musical material lives in the `SONGS` object — one `build()` per song,
+  patterns over 4 bars × 16 steps, melodic notes as
+  `[bar, step, midi, length, velocity]`. Add another song by copying one
+  (new pitches need re-rendering into the sample set).
 - The whole engine is one block marked `ROSAPHONE ENGINE v3`, kept
   byte-identical in `index.html` and `soundcheck.html` — edit both together.
   The samples are embedded as base64 mp3 in the same block, rendered per-note
