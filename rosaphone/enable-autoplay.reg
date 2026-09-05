@@ -1,0 +1,12 @@
+Windows Registry Editor Version 5.00
+
+; Optional, needs admin: lets Rosaphone start its music with no tap even
+; when it is opened WITHOUT Rosaphone.bat (for example from a button in
+; TD Snap / Communicator / Grid 3 that opens the file in the browser).
+; Right-click this file, choose Merge, and approve the prompt.
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Edge]
+"AutoplayAllowed"=dword:00000001
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Google\Chrome]
+"AutoplayAllowed"=dword:00000001

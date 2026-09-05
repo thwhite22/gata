@@ -79,6 +79,15 @@ latency.
 
 ## Loading it onto the Tobii
 
+**This folder is a ready install pack.** Copy the whole folder onto the
+device and open `setup.html` — a 5-minute illustrated guide for helpers:
+`Rosaphone.bat` launches full-screen with sound and the microphone
+pre-allowed (no taps ever), `Create-Desktop-Shortcut.bat` puts an icon on
+the desktop, `Try-the-sounds.bat` is the tap-only sound check, and
+`enable-autoplay.reg` is the optional device-wide policy. It also covers
+adding a launch button inside TD Snap / Communicator / Grid 3. The manual
+routes below do the same by hand.
+
 **Option A — copy the file (works offline)**
 1. Copy `index.html` onto the device (USB stick, OneDrive, email to yourself).
 2. Double-click it — it opens in Edge. Press `F` or the corner button for full
